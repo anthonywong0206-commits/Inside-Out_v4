@@ -73,3 +73,125 @@
   .emotion-card:nth-child(1) .emotion-avatar.has-custom{width:140px;height:140px}
   .emotion-card:has(.emotion-avatar.has-custom){min-height:188px}
 }
+
+/* v10 Create page mascot layout: reference-image style, no text labels under mascots */
+.emotion-stage{
+  position:relative;
+  margin:14px 0 22px;
+  padding:0 4px 8px;
+}
+.emotion-stage-row{
+  display:grid;
+  align-items:end;
+  justify-items:center;
+}
+.emotion-stage-top{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  column-gap:22px;
+  margin-bottom:18px;
+}
+.emotion-stage-bottom{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  column-gap:4px;
+}
+.emotion-mascot{
+  border:0;
+  background:transparent;
+  color:white;
+  display:grid;
+  place-items:center;
+  padding:0;
+  min-height:168px;
+  width:100%;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.emotion-mascot .character{
+  width:148px;
+  height:148px;
+}
+.emotion-mascot.emotion-joy .character,
+.emotion-mascot.emotion-anger .character{
+  width:168px;
+  height:168px;
+}
+.emotion-mascot.emotion-sadness .character,
+.emotion-mascot.emotion-fear .character,
+.emotion-mascot.emotion-disgust .character{
+  width:128px;
+  height:128px;
+}
+.emotion-mascot .character span{
+  font-size:64px;
+}
+.emotion-mascot.emotion-joy .character span,
+.emotion-mascot.emotion-anger .character span{
+  font-size:72px;
+}
+.emotion-mascot.emotion-sadness .character span,
+.emotion-mascot.emotion-fear .character span,
+.emotion-mascot.emotion-disgust .character span{
+  font-size:56px;
+}
+.emotion-mascot .emotion-avatar.has-custom{
+  background:transparent!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+  border-radius:0!important;
+  isolation:isolate;
+}
+.emotion-mascot.emotion-joy .emotion-avatar.has-custom,
+.emotion-mascot.emotion-anger .emotion-avatar.has-custom{
+  width:190px;
+  height:190px;
+}
+.emotion-mascot.emotion-sadness .emotion-avatar.has-custom,
+.emotion-mascot.emotion-fear .emotion-avatar.has-custom,
+.emotion-mascot.emotion-disgust .emotion-avatar.has-custom{
+  width:148px;
+  height:148px;
+}
+.emotion-mascot .emotion-avatar.has-custom:after{display:none!important;}
+.emotion-mascot .emotion-avatar.has-custom::before{
+  content:"";
+  position:absolute;
+  inset:18%;
+  z-index:-1;
+  border-radius:999px;
+  background:radial-gradient(circle, rgba(255,255,255,.22), transparent 68%);
+  filter:blur(20px);
+}
+.emotion-mascot .emotion-avatar.has-custom img{
+  width:136%;
+  height:136%;
+  object-fit:contain;
+  transform:translateY(0);
+  filter:drop-shadow(0 0 22px currentColor) drop-shadow(0 18px 20px rgba(0,0,0,.38));
+}
+@media (max-width:390px){
+  .emotion-stage-top{column-gap:10px;margin-bottom:12px;}
+  .emotion-mascot{min-height:150px;}
+  .emotion-mascot.emotion-joy .character,
+  .emotion-mascot.emotion-anger .character{width:150px;height:150px;}
+  .emotion-mascot.emotion-sadness .character,
+  .emotion-mascot.emotion-fear .character,
+  .emotion-mascot.emotion-disgust .character{width:112px;height:112px;}
+  .emotion-mascot.emotion-joy .emotion-avatar.has-custom,
+  .emotion-mascot.emotion-anger .emotion-avatar.has-custom{width:168px;height:168px;}
+  .emotion-mascot.emotion-sadness .emotion-avatar.has-custom,
+  .emotion-mascot.emotion-fear .emotion-avatar.has-custom,
+  .emotion-mascot.emotion-disgust .emotion-avatar.has-custom{width:130px;height:130px;}
+}
+@media (max-width:340px){
+  .emotion-mascot{min-height:132px;}
+  .emotion-mascot.emotion-joy .character,
+  .emotion-mascot.emotion-anger .character{width:132px;height:132px;}
+  .emotion-mascot.emotion-sadness .character,
+  .emotion-mascot.emotion-fear .character,
+  .emotion-mascot.emotion-disgust .character{width:98px;height:98px;}
+  .emotion-mascot.emotion-joy .emotion-avatar.has-custom,
+  .emotion-mascot.emotion-anger .emotion-avatar.has-custom{width:148px;height:148px;}
+  .emotion-mascot.emotion-sadness .emotion-avatar.has-custom,
+  .emotion-mascot.emotion-fear .emotion-avatar.has-custom,
+  .emotion-mascot.emotion-disgust .emotion-avatar.has-custom{width:114px;height:114px;}
+}
