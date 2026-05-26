@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Orbit, BarChart3, CalendarDays, Sparkles, Search, SlidersHorizontal, X, Edit3, Trash2, Share2, Download, Moon, Sun, ChevronLeft, MoreVertical, Save, Heart, Home, Briefcase, Users, Coins, Star, RefreshCcw } from 'lucide-react';
+import { Plus, Orbit, BarChart3, CalendarDays, Sparkles, Search, SlidersHorizontal, X, Edit3, Trash2, Share2, Download, Moon, Sun, ChevronLeft, MoreVertical, Save, Heart, Home, Briefcase, Users, Coins, Star, RefreshCcw, Settings, Upload, Image as ImageIcon } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import html2canvas from 'html2canvas';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, parseISO } from 'date-fns';
 import './styles.css';
 
 const STORAGE='emotion-memory-v3';
+const CUSTOM_IMAGE_STORAGE='emotion-memory-custom-emotion-images-v1';
 const makeId=()=> (typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():`id-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 const cleanMemory=(m)=>({
   ...m,
@@ -58,19 +59,63 @@ function useLocal(){
   },[items]);
   return [items,setItems,storageError,setStorageError];
 }
+
+function compressEmotionImage(file,maxSize=420,quality=.86){
+  return new Promise((resolve,reject)=>{
+    if(!file || !file.type || !file.type.startsWith('image/')) return reject(new Error('請選擇圖片檔案。'));
+    if(file.size>8*1024*1024) return reject(new Error('圖片太大，請選擇 8MB 以下圖片。'));
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('圖片讀取失敗。'));
+    reader.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('圖片格式未能讀取。'));
+      img.onload=()=>{
+        const scale=Math.min(1,maxSize/img.width,maxSize/img.height);
+        const w=Math.max(1,Math.round(img.width*scale));
+        const h=Math.max(1,Math.round(img.height*scale));
+        const canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        const ctx=canvas.getContext('2d');
+        ctx.clearRect(0,0,w,h);
+        ctx.drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/webp',quality));
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function useCustomEmotionImages(){
+  const [customImages,setCustomImages]=useState(()=>{
+    try{const raw=JSON.parse(localStorage.getItem(CUSTOM_IMAGE_STORAGE));return raw&&typeof raw==='object'?raw:{}}catch{return {}}
+  });
+  const [customImageError,setCustomImageError]=useState('');
+  useEffect(()=>{
+    try{localStorage.setItem(CUSTOM_IMAGE_STORAGE,JSON.stringify(customImages));setCustomImageError('')}
+    catch(err){console.warn('自訂情緒圖片儲存失敗',err);setCustomImageError('圖片儲存空間不足，請先重設部分情緒圖片。')}
+  },[customImages]);
+  return [customImages,setCustomImages,customImageError,setCustomImageError];
+}
+function EmotionAvatar({emotion,customImages,size='normal',className='',label}){
+  const src=customImages?.[emotion.key];
+  return <div className={`character emotion-avatar ${src?'has-custom':''} ${size==='small'?'small-avatar':''} ${className}`} style={bgStyle(emotion)} aria-label={label||emotion.zh}>
+    {src?<img src={src} alt={emotion.zh}/>:<span>{emotion.face}</span>}
+  </div>
+}
+
 function emotionOf(k){return EMOTIONS.find(e=>e.key===k)||EMOTIONS[0]}
 function bgStyle(e){return {background:`radial-gradient(circle at 32% 28%, ${e.soft} 0, ${e.color} 35%, rgba(255,255,255,.2) 55%, ${e.color} 100%)`, boxShadow:`0 0 28px ${e.color}99, inset 0 8px 18px rgba(255,255,255,.42), inset 0 -12px 28px rgba(0,0,0,.2)`}}
-function App(){const [items,setItems,storageError]=useLocal();const [tab,setTab]=useState('create');const [selected,setSelected]=useState(null);const [detail,setDetail]=useState(null);const [query,setQuery]=useState('');const [filter,setFilter]=useState('all');const [catFilter,setCatFilter]=useState('all');const [dark,setDark]=useState(true);
+function App(){const [items,setItems,storageError]=useLocal();const [customImages,setCustomImages,customImageError,setCustomImageError]=useCustomEmotionImages();const [tab,setTab]=useState('create');const [selected,setSelected]=useState(null);const [detail,setDetail]=useState(null);const [query,setQuery]=useState('');const [filter,setFilter]=useState('all');const [catFilter,setCatFilter]=useState('all');const [dark,setDark]=useState(true);
  const addMemory=(m)=>{const saved=cleanMemory({...m,id:makeId(),createdAt:Date.now()});setItems([saved,...items]);setSelected(null);setDetail(saved);setTimeout(()=>setTab('memories'),500)};
  const update=(m)=>setItems(items.map(x=>x.id===m.id?m:x)); const remove=(id)=>{setItems(items.filter(x=>x.id!==id));setDetail(null)};
  return <div className={`app ${dark?'dark':'light'}`}><Cosmos/><main className="phone-shell"><TopBar dark={dark} setDark={setDark}/><AnimatePresence mode="wait">
- {tab==='create'&&<Create key="create" onPick={setSelected}/>} {tab==='memories'&&<Memories key="mem" items={items} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} catFilter={catFilter} setCatFilter={setCatFilter} open={setDetail}/>} {tab==='stats'&&<Stats key="stats" items={items}/>} {tab==='calendar'&&<CalendarPage key="cal" items={items} open={setDetail}/>} {tab==='review'&&<Review key="rev" items={items}/>} </AnimatePresence><Nav tab={tab} setTab={setTab}/></main>
- {storageError&&<div className="storage-warning">{storageError}</div>}<AnimatePresence>{selected&&<CreateModal emotion={selected} onClose={()=>setSelected(null)} onSave={addMemory}/>} {detail&&<Detail item={detail} onClose={()=>setDetail(null)} onDelete={remove} onSave={update}/>}</AnimatePresence></div>}
+ {tab==='create'&&<Create key="create" onPick={setSelected} customImages={customImages}/>} {tab==='memories'&&<Memories key="mem" items={items} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} catFilter={catFilter} setCatFilter={setCatFilter} open={setDetail} customImages={customImages}/>} {tab==='stats'&&<Stats key="stats" items={items}/>} {tab==='calendar'&&<CalendarPage key="cal" items={items} open={setDetail} customImages={customImages}/>} {tab==='review'&&<Review key="rev" items={items} customImages={customImages}/>} {tab==='settings'&&<SettingsPage key="settings" customImages={customImages} setCustomImages={setCustomImages} error={customImageError} setError={setCustomImageError}/>} </AnimatePresence><Nav tab={tab} setTab={setTab}/></main>
+ {(storageError||customImageError)&&<div className="storage-warning">{storageError||customImageError}</div>}<AnimatePresence>{selected&&<CreateModal emotion={selected} onClose={()=>setSelected(null)} onSave={addMemory} customImages={customImages}/>} {detail&&<Detail item={detail} onClose={()=>setDetail(null)} onDelete={remove} onSave={update} customImages={customImages}/>}</AnimatePresence></div>}
 function Cosmos(){return <div className="cosmos"><div className="orb o1"/><div className="orb o2"/><div className="orb o3"/>{Array.from({length:34}).map((_,i)=><span key={i} className="star" style={{left:`${Math.random()*100}%`,top:`${Math.random()*100}%`,animationDelay:`${Math.random()*8}s`}}/>)}</div>}
 function TopBar({dark,setDark}){return <div className="topbar"><div><p className="mini">Emotion Memory</p><h1>情緒記憶宇宙</h1></div><button className="round" onClick={()=>setDark(!dark)}>{dark?<Sun size={18}/>:<Moon size={18}/>}</button></div>}
 function Screen({children,className=''}){return <motion.section initial={{opacity:0,y:18,filter:'blur(10px)'}} animate={{opacity:1,y:0,filter:'blur(0px)'}} exit={{opacity:0,y:-12,filter:'blur(10px)'}} className={`screen ${className}`}>{children}</motion.section>}
-function Create({onPick}){return <Screen><div className="hero"><p className="label">每段回憶，都值得被收藏。</p><h2>今天，<br/>你留下了什麼情緒？</h2><p>選一個最貼近你的情緒，將它變成一顆會發光的記憶球。</p></div><div className="emotion-grid">{EMOTIONS.map((e,i)=><motion.button key={e.key} className="emotion-card" onClick={()=>onPick(e)} whileTap={{scale:.92}} animate={{y:[0,-10,0]}} transition={{duration:3+i*.24,repeat:Infinity}}><div className="character" style={bgStyle(e)}><span>{e.face}</span></div><b>{e.zh}</b><small>{e.en}</small></motion.button>)}</div><div className="tip-card"><Sparkles size={18}/><div><b>小提示</b><p>不需要寫得完美，只要誠實記下此刻感覺就很好。</p></div></div></Screen>}
-function CreateModal({emotion,onClose,onSave}){
+function Create({onPick,customImages}){return <Screen><div className="hero"><p className="label">每段回憶，都值得被收藏。</p><h2>今天，<br/>你留下了什麼情緒？</h2><p>選一個最貼近你的情緒，將它變成一顆會發光的記憶球。</p></div><div className="emotion-grid">{EMOTIONS.map((e,i)=><motion.button key={e.key} className="emotion-card" onClick={()=>onPick(e)} whileTap={{scale:.92}} animate={{y:[0,-10,0]}} transition={{duration:3+i*.24,repeat:Infinity}}><EmotionAvatar emotion={e} customImages={customImages}/><b>{e.zh}</b><small>{e.en}</small></motion.button>)}</div><div className="tip-card"><Sparkles size={18}/><div><b>小提示</b><p>不需要寫得完美，只要誠實記下此刻感覺就很好。可到「設定」上載圖片，自訂 5 種情緒公仔形象。</p></div></div></Screen>}
+function CreateModal({emotion,onClose,onSave,customImages}){
  const [title,setTitle]=useState('');
  const [content,setContent]=useState('');
  const [date,setDate]=useState(format(new Date(),'yyyy-MM-dd'));
@@ -83,7 +128,7 @@ function CreateModal({emotion,onClose,onSave}){
  return <motion.div className="overlay" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
   <motion.div className="create-modal" initial={{y:60,scale:.95}} animate={{y:0,scale:1}} exit={{y:80,scale:.95}}>
    <div className={`modal-head bg-gradient-to-br ${emotion.gradient}`}>
-    <div className="mini-character" style={bgStyle(emotion)}>{emotion.face}</div><div><h3>{emotion.zh}</h3><p>{emotion.en}</p></div><button onClick={onClose}><X size={20}/></button>
+    <EmotionAvatar emotion={emotion} customImages={customImages} size="small" className="mini-character"/><div><h3>{emotion.zh}</h3><p>{emotion.en}</p></div><button onClick={onClose}><X size={20}/></button>
    </div>
    <div className="form">
     <label>記憶標題<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="今天發生了什麼讓你印象深刻？"/></label>
@@ -95,11 +140,11 @@ function CreateModal({emotion,onClose,onSave}){
   </motion.div>
  </motion.div>
 }
-function Memories({items,query,setQuery,filter,setFilter,catFilter,setCatFilter,open}){const filtered=items.filter(m=>{const t=(m.title+m.content+m.categories.join('')).toLowerCase();return (filter==='all'||m.emotion===filter)&&(catFilter==='all'||m.categories.includes(catFilter))&&t.includes(query.toLowerCase())});return <Screen><div className="page-head"><h2>我的情緒宇宙</h2><Search size={18}/></div><div className="search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜尋標題、內容、分類..."/><SlidersHorizontal size={16}/></div><div className="scroll-tabs"><button onClick={()=>setFilter('all')} className={filter==='all'?'active':''}>全部</button>{EMOTIONS.map(e=><button key={e.key} onClick={()=>setFilter(e.key)} className={filter===e.key?'active':''}>{e.face} {e.zh}</button>)}</div><select className="select" value={catFilter} onChange={e=>setCatFilter(e.target.value)}><option value="all">全部分類</option>{CATEGORIES.map(([c])=><option key={c}>{c}</option>)}</select><div className="universe-area">{filtered.length===0?<Empty/>:filtered.map((m,i)=>{const e=emotionOf(m.emotion);return <motion.button key={m.id} className="memory-ball" style={{...bgStyle(e),left:`${10+(i*29)%70}%`,top:`${8+(i*23)%74}%`,width: i%3===0?112:i%3===1?86:68,height:i%3===0?112:i%3===1?86:68}} onClick={()=>open(m)} animate={{y:[0,-14,0],x:[0,8,0]}} transition={{duration:4+i*.5,repeat:Infinity}}><span>{m.title}</span><small>{e.face}</small></motion.button>})}<button className="floating-plus"><Plus/></button></div></Screen>}
+function Memories({items,query,setQuery,filter,setFilter,catFilter,setCatFilter,open,customImages}){const filtered=items.filter(m=>{const t=(m.title+m.content+m.categories.join('')).toLowerCase();return (filter==='all'||m.emotion===filter)&&(catFilter==='all'||m.categories.includes(catFilter))&&t.includes(query.toLowerCase())});return <Screen><div className="page-head"><h2>我的情緒宇宙</h2><Search size={18}/></div><div className="search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜尋標題、內容、分類..."/><SlidersHorizontal size={16}/></div><div className="scroll-tabs"><button onClick={()=>setFilter('all')} className={filter==='all'?'active':''}>全部</button>{EMOTIONS.map(e=><button key={e.key} onClick={()=>setFilter(e.key)} className={filter===e.key?'active':''}>{e.face} {e.zh}</button>)}</div><select className="select" value={catFilter} onChange={e=>setCatFilter(e.target.value)}><option value="all">全部分類</option>{CATEGORIES.map(([c])=><option key={c}>{c}</option>)}</select><div className="universe-area">{filtered.length===0?<Empty/>:filtered.map((m,i)=>{const e=emotionOf(m.emotion);return <motion.button key={m.id} className="memory-ball" style={{...bgStyle(e),left:`${10+(i*29)%70}%`,top:`${8+(i*23)%74}%`,width: i%3===0?112:i%3===1?86:68,height:i%3===0?112:i%3===1?86:68}} onClick={()=>open(m)} animate={{y:[0,-14,0],x:[0,8,0]}} transition={{duration:4+i*.5,repeat:Infinity}}><span>{m.title}</span><small>{customImages?.[e.key]?<img className="ball-custom-face" src={customImages[e.key]} alt={e.zh}/>:e.face}</small></motion.button>})}<button className="floating-plus"><Plus/></button></div></Screen>}
 function Empty(){return <div className="empty"><div className="character small">✨</div><h3>未有記憶球</h3><p>返回創建頁，收藏第一份情緒吧。</p></div>}
-function Detail({item,onClose,onDelete,onSave}){const e=emotionOf(item.emotion);const cardRef=useRef(null);const exportImg=async()=>{if(!cardRef.current)return;const canvas=await html2canvas(cardRef.current,{backgroundColor:null,scale:2});const a=document.createElement('a');a.href=canvas.toDataURL();a.download=`emotion-memory-${item.date}.png`;a.click()};return <motion.div className="overlay" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className="detail" initial={{y:70}} animate={{y:0}} exit={{y:80}} ref={cardRef}><div className="detail-top"><button onClick={onClose}><ChevronLeft/></button><button><MoreVertical/></button></div><div className="big-ball" style={bgStyle(e)}><span>{e.face}</span><b>{item.title}</b><i>♥</i></div><div className="detail-card"><div className="between"><div><h3>{e.zh}</h3><p>{e.en}</p></div><p>{item.date}</p></div><p className="content">{item.content}</p><div className="stars">{'★'.repeat(item.intensity)}{'☆'.repeat(10-item.intensity)} <span>{item.intensity}/10</span></div><div className="chips">{(item.categories||[]).map(c=><span className="chip active" key={c}>{c}</span>)}</div></div><div className="actions"><button><Edit3/>編輯</button><button onClick={exportImg}><Download/>匯出</button><button onClick={()=>onDelete(item.id)} className="danger"><Trash2/>刪除</button></div></motion.div></motion.div>}
+function Detail({item,onClose,onDelete,onSave,customImages}){const e=emotionOf(item.emotion);const cardRef=useRef(null);const exportImg=async()=>{if(!cardRef.current)return;const canvas=await html2canvas(cardRef.current,{backgroundColor:null,scale:2});const a=document.createElement('a');a.href=canvas.toDataURL();a.download=`emotion-memory-${item.date}.png`;a.click()};return <motion.div className="overlay" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className="detail" initial={{y:70}} animate={{y:0}} exit={{y:80}} ref={cardRef}><div className="detail-top"><button onClick={onClose}><ChevronLeft/></button><button><MoreVertical/></button></div><div className="big-ball" style={bgStyle(e)}>{customImages?.[e.key]?<img className="big-custom-face" src={customImages[e.key]} alt={e.zh}/>:<span>{e.face}</span>}<b>{item.title}</b><i>♥</i></div><div className="detail-card"><div className="between"><div><h3>{e.zh}</h3><p>{e.en}</p></div><p>{item.date}</p></div><p className="content">{item.content}</p><div className="stars">{'★'.repeat(item.intensity)}{'☆'.repeat(10-item.intensity)} <span>{item.intensity}/10</span></div><div className="chips">{(item.categories||[]).map(c=><span className="chip active" key={c}>{c}</span>)}</div></div><div className="actions"><button><Edit3/>編輯</button><button onClick={exportImg}><Download/>匯出</button><button onClick={()=>onDelete(item.id)} className="danger"><Trash2/>刪除</button></div></motion.div></motion.div>}
 function Stats({items}){const counts=EMOTIONS.map(e=>({name:e.zh,value:items.filter(i=>i.emotion===e.key).length,color:e.color}));const total=items.length||1;const avg=(items.reduce((s,i)=>s+i.intensity,0)/(items.length||1)).toFixed(1);const line=items.slice().reverse().map((i,idx)=>({name:String(idx+1),v:i.intensity}));return <Screen><div className="page-head"><h2>情緒統計</h2><BarChart3/></div><div className="stats-card"><ResponsiveContainer width="100%" height={210}><PieChart><Pie data={counts} dataKey="value" innerRadius={54} outerRadius={82} paddingAngle={4}>{counts.map((c,i)=><Cell key={i} fill={c.color}/>)}</Pie></PieChart></ResponsiveContainer><div className="center-number"><b>{items.length}</b><span>記憶球</span></div></div><div className="legend">{counts.map(c=><p key={c.name}><i style={{background:c.color}}/> {c.name}<span>{Math.round(c.value/total*100)}%</span></p>)}</div><div className="chart-card"><div className="between"><h3>情緒趨勢</h3><b>平均強度 {avg}/10</b></div><ResponsiveContainer width="100%" height={170}><LineChart data={line}><XAxis dataKey="name" hide/><YAxis hide domain={[0,10]}/><Tooltip/><Line type="monotone" dataKey="v" stroke="#6ee7ff" strokeWidth={3} dot={{r:4}}/></LineChart></ResponsiveContainer></div></Screen>}
-function CalendarPage({items,open}){
+function CalendarPage({items,open,customImages}){
  const [viewMonth,setViewMonth]=useState(new Date());
  const safeDate=(value)=>{try{return parseISO(value)}catch{return new Date()}};
  const changeMonth=(step)=>setViewMonth(prev=>new Date(prev.getFullYear(),prev.getMonth()+step,1));
@@ -120,9 +165,38 @@ function CalendarPage({items,open}){
    <div className="week">{'日一二三四五六'.split('').map(d=><span key={d}>{d}</span>)}</div>
    <div className="days">{Array.from({length:offset}).map((_,i)=><span key={'b'+i}/>) }{days.map(d=>{const ms=items.filter(m=>isSameDay(safeDate(m.date),d));return <button key={d.toISOString()} className={isSameDay(d,new Date())?'today':''} onClick={()=>ms[0]&&open(ms[0])}><b>{format(d,'d')}</b>{ms.slice(0,3).map(m=><i key={m.id} style={{background:emotionOf(m.emotion).color}}/>)}{ms.length>3&&<em>+{ms.length-3}</em>}</button>})}</div>
   </div>
-  <div className="today-list"><h3>{format(viewMonth,'M月')}情緒紀錄</h3>{monthItems.length?monthItems.map(m=><button key={m.id} onClick={()=>open(m)}><span style={bgStyle(emotionOf(m.emotion))}>{emotionOf(m.emotion).face}</span><div><b>{m.title}</b><p>{m.date} · {m.content}</p></div></button>):<div className="empty small-empty"><div className="character small">🌙</div><h3>這個月份未有紀錄</h3><p>可以用左右箭嘴翻看其他月份。</p></div>}</div>
+  <div className="today-list"><h3>{format(viewMonth,'M月')}情緒紀錄</h3>{monthItems.length?monthItems.map(m=><button key={m.id} onClick={()=>open(m)}><span style={bgStyle(emotionOf(m.emotion))}>{customImages?.[m.emotion]?<img className="list-custom-face" src={customImages[m.emotion]} alt={emotionOf(m.emotion).zh}/>:emotionOf(m.emotion).face}</span><div><b>{m.title}</b><p>{m.date} · {m.content}</p></div></button>):<div className="empty small-empty"><div className="character small">🌙</div><h3>這個月份未有紀錄</h3><p>可以用左右箭嘴翻看其他月份。</p></div>}</div>
  </Screen>}
-function Review({items}){const today=items.filter(m=>isSameDay(parseISO(m.date),new Date()));const main=today[0]||items[0]||seed[0];const e=emotionOf(main.emotion);return <Screen><div className="page-head"><h2>今日回顧</h2><RefreshCcw/></div><div className={`review-hero bg-gradient-to-br ${e.gradient}`}><div className="character" style={bgStyle(e)}><span>{e.face}</span></div><div><p>你的主要情緒</p><h2>{e.zh}</h2><b>{main.intensity}/10</b></div></div><div className="quote-card"><h3>今日語錄</h3><p>「{e.quote}」</p></div><div className="quote-card"><h3>今日分析</h3><p>今天共收藏 {today.length} 份情緒記憶。把情緒寫下來，本身已經是一種溫柔整理。</p></div><button className="primary"><Share2 size={18}/>分享今天的心情</button></Screen>}
-function Nav({tab,setTab}){const nav=[['create','創建',Plus],['memories','記憶集',Orbit],['stats','統計',BarChart3],['calendar','日曆',CalendarDays],['review','回顧',Sparkles]];return <nav className="nav">{nav.map(([k,t,Icon])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k)}><Icon size={19}/><span>{t}</span></button>)}</nav>}
+function Review({items,customImages}){const today=items.filter(m=>isSameDay(parseISO(m.date),new Date()));const main=today[0]||items[0]||seed[0];const e=emotionOf(main.emotion);return <Screen><div className="page-head"><h2>今日回顧</h2><RefreshCcw/></div><div className={`review-hero bg-gradient-to-br ${e.gradient}`}><EmotionAvatar emotion={e} customImages={customImages}/><div><p>你的主要情緒</p><h2>{e.zh}</h2><b>{main.intensity}/10</b></div></div><div className="quote-card"><h3>今日語錄</h3><p>「{e.quote}」</p></div><div className="quote-card"><h3>今日分析</h3><p>今天共收藏 {today.length} 份情緒記憶。把情緒寫下來，本身已經是一種溫柔整理。</p></div><button className="primary"><Share2 size={18}/>分享今天的心情</button></Screen>}
+
+function SettingsPage({customImages,setCustomImages,error,setError}){
+ const [busy,setBusy]=useState('');
+ const pick=async(emotion,file)=>{
+   if(!file)return;
+   setBusy(emotion.key);
+   setError('');
+   try{
+     const dataUrl=await compressEmotionImage(file,420,.86);
+     setCustomImages(prev=>({...prev,[emotion.key]:dataUrl}));
+   }catch(err){setError(err.message||'圖片處理失敗，請重試。')}
+   finally{setBusy('')}
+ };
+ const resetOne=(key)=>setCustomImages(prev=>{const next={...prev};delete next[key];return next});
+ const resetAll=()=>setCustomImages({});
+ return <Screen className="settings-screen">
+   <div className="page-head"><h2>情緒公仔設定</h2><Settings size={20}/></div>
+   <div className="settings-hero"><ImageIcon size={24}/><div><b>自訂 5 種情緒插圖</b><p>上載 PNG / JPG / WebP，系統會自動壓縮並儲存在本機。創建頁、記憶球詳情、日曆及回顧會同步使用。</p></div></div>
+   {error&&<p className="image-error">{error}</p>}
+   <div className="asset-grid">{EMOTIONS.map(e=><div className="asset-card" key={e.key}>
+     <div className="asset-preview" style={bgStyle(e)}>{customImages?.[e.key]?<img src={customImages[e.key]} alt={e.zh}/>:<span>{e.face}</span>}</div>
+     <div className="asset-info"><b>{e.zh}</b><small>{e.en}</small><em style={{color:e.color}}>{e.color}</em></div>
+     <label className="asset-upload"><Upload size={15}/>{busy===e.key?'處理中...':'上載圖片'}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy===e.key} onChange={ev=>pick(e,ev.target.files?.[0])}/></label>
+     {customImages?.[e.key]&&<button className="asset-reset" onClick={()=>resetOne(e.key)}>還原預設</button>}
+   </div>)}</div>
+   <button className="secondary-wide" onClick={resetAll}>重設全部情緒公仔</button>
+   <div className="tip-card"><Sparkles size={18}/><div><b>建議圖片</b><p>使用透明背景 PNG 或正方形角色圖效果最好。圖片只會保存在你的瀏覽器，不會上傳到伺服器。</p></div></div>
+ </Screen>
+}
+function Nav({tab,setTab}){const nav=[['create','創建',Plus],['memories','記憶集',Orbit],['stats','統計',BarChart3],['calendar','日曆',CalendarDays],['review','回顧',Sparkles],['settings','設定',Settings]];return <nav className="nav nav-six">{nav.map(([k,t,Icon])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k)}><Icon size={18}/><span>{t}</span></button>)}</nav>}
 
 createRoot(document.getElementById('root')).render(<App/>);
