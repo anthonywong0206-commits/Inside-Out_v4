@@ -9,6 +9,7 @@ import './styles.css';
 
 const STORAGE='emotion-memory-v3';
 const CUSTOM_IMAGE_STORAGE='emotion-memory-custom-emotion-images-v1';
+const CUSTOM_LIBRARY_BG_STORAGE='emotion-memory-custom-library-bg-v1';
 const makeId=()=> (typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():`id-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 const cleanMemory=(m)=>({
   ...m,
@@ -96,6 +97,25 @@ function useCustomEmotionImages(){
   },[customImages]);
   return [customImages,setCustomImages,customImageError,setCustomImageError];
 }
+
+function useCustomLibraryBg(){
+  const [libraryBg,setLibraryBg]=useState(()=>{
+    try{return localStorage.getItem(CUSTOM_LIBRARY_BG_STORAGE)||''}catch{return ''}
+  });
+  const [libraryBgError,setLibraryBgError]=useState('');
+  useEffect(()=>{
+    try{
+      if(libraryBg){localStorage.setItem(CUSTOM_LIBRARY_BG_STORAGE,libraryBg)}
+      else{localStorage.removeItem(CUSTOM_LIBRARY_BG_STORAGE)}
+      setLibraryBgError('')
+    }catch(err){
+      console.warn('記憶庫背景儲存失敗',err);
+      setLibraryBgError('背景圖片儲存空間不足，請改用較細圖片或重設背景。')
+    }
+  },[libraryBg]);
+  return [libraryBg,setLibraryBg,libraryBgError,setLibraryBgError];
+}
+
 function EmotionAvatar({emotion,customImages,size='normal',className='',label}){
   const src=customImages?.[emotion.key];
   return <div className={`character emotion-avatar ${src?'has-custom':''} ${size==='small'?'small-avatar':''} ${className}`} style={bgStyle(emotion)} aria-label={label||emotion.zh}>
@@ -105,12 +125,12 @@ function EmotionAvatar({emotion,customImages,size='normal',className='',label}){
 
 function emotionOf(k){return EMOTIONS.find(e=>e.key===k)||EMOTIONS[0]}
 function bgStyle(e){return {background:`radial-gradient(circle at 32% 28%, ${e.soft} 0, ${e.color} 35%, rgba(255,255,255,.2) 55%, ${e.color} 100%)`, boxShadow:`0 0 28px ${e.color}99, inset 0 8px 18px rgba(255,255,255,.42), inset 0 -12px 28px rgba(0,0,0,.2)`}}
-function App(){const [items,setItems,storageError]=useLocal();const [customImages,setCustomImages,customImageError,setCustomImageError]=useCustomEmotionImages();const [tab,setTab]=useState('create');const [selected,setSelected]=useState(null);const [detail,setDetail]=useState(null);const [query,setQuery]=useState('');const [filter,setFilter]=useState('all');const [catFilter,setCatFilter]=useState('all');const [dark,setDark]=useState(true);
+function App(){const [items,setItems,storageError]=useLocal();const [customImages,setCustomImages,customImageError,setCustomImageError]=useCustomEmotionImages();const [libraryBg,setLibraryBg,libraryBgError,setLibraryBgError]=useCustomLibraryBg();const [tab,setTab]=useState('create');const [selected,setSelected]=useState(null);const [detail,setDetail]=useState(null);const [query,setQuery]=useState('');const [filter,setFilter]=useState('all');const [catFilter,setCatFilter]=useState('all');const [dark,setDark]=useState(true);
  const addMemory=(m)=>{const saved=cleanMemory({...m,id:makeId(),createdAt:Date.now()});setItems([saved,...items]);setSelected(null);setDetail(saved);setTimeout(()=>setTab('memories'),500)};
  const update=(m)=>setItems(items.map(x=>x.id===m.id?m:x)); const remove=(id)=>{setItems(items.filter(x=>x.id!==id));setDetail(null)};
  return <div className={`app ${dark?'dark':'light'}`}><Cosmos/><main className="phone-shell"><TopBar dark={dark} setDark={setDark}/><AnimatePresence mode="wait">
- {tab==='create'&&<Create key="create" onPick={setSelected} customImages={customImages}/>} {tab==='memories'&&<Memories key="mem" items={items} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} catFilter={catFilter} setCatFilter={setCatFilter} open={setDetail} customImages={customImages}/>} {tab==='stats'&&<Stats key="stats" items={items}/>} {tab==='calendar'&&<CalendarPage key="cal" items={items} open={setDetail} customImages={customImages}/>} {tab==='review'&&<Review key="rev" items={items} customImages={customImages}/>} {tab==='settings'&&<SettingsPage key="settings" customImages={customImages} setCustomImages={setCustomImages} error={customImageError} setError={setCustomImageError}/>} </AnimatePresence><Nav tab={tab} setTab={setTab}/></main>
- {(storageError||customImageError)&&<div className="storage-warning">{storageError||customImageError}</div>}<AnimatePresence>{selected&&<CreateModal emotion={selected} onClose={()=>setSelected(null)} onSave={addMemory} customImages={customImages}/>} {detail&&<Detail item={detail} onClose={()=>setDetail(null)} onDelete={remove} onSave={update} customImages={customImages}/>}</AnimatePresence></div>}
+ {tab==='create'&&<Create key="create" onPick={setSelected} customImages={customImages}/>} {tab==='memories'&&<Memories key="mem" items={items} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} catFilter={catFilter} setCatFilter={setCatFilter} open={setDetail} customImages={customImages} libraryBg={libraryBg}/>} {tab==='stats'&&<Stats key="stats" items={items}/>} {tab==='calendar'&&<CalendarPage key="cal" items={items} open={setDetail} customImages={customImages}/>} {tab==='review'&&<Review key="rev" items={items} customImages={customImages}/>} {tab==='settings'&&<SettingsPage key="settings" customImages={customImages} setCustomImages={setCustomImages} error={customImageError} setError={setCustomImageError} libraryBg={libraryBg} setLibraryBg={setLibraryBg} libraryBgError={libraryBgError} setLibraryBgError={setLibraryBgError}/>} </AnimatePresence><Nav tab={tab} setTab={setTab}/></main>
+ {(storageError||customImageError||libraryBgError)&&<div className="storage-warning">{storageError||customImageError||libraryBgError}</div>}<AnimatePresence>{selected&&<CreateModal emotion={selected} onClose={()=>setSelected(null)} onSave={addMemory} customImages={customImages}/>} {detail&&<Detail item={detail} onClose={()=>setDetail(null)} onDelete={remove} onSave={update} customImages={customImages}/>}</AnimatePresence></div>}
 function Cosmos(){return <div className="cosmos"><div className="orb o1"/><div className="orb o2"/><div className="orb o3"/>{Array.from({length:34}).map((_,i)=><span key={i} className="star" style={{left:`${Math.random()*100}%`,top:`${Math.random()*100}%`,animationDelay:`${Math.random()*8}s`}}/>)}</div>}
 function TopBar({dark,setDark}){return <div className="topbar"><div><p className="mini">Emotion Memory</p><h1>情緒記憶宇宙</h1></div><button className="round" onClick={()=>setDark(!dark)}>{dark?<Sun size={18}/>:<Moon size={18}/>}</button></div>}
 function Screen({children,className=''}){return <motion.section initial={{opacity:0,y:18,filter:'blur(10px)'}} animate={{opacity:1,y:0,filter:'blur(0px)'}} exit={{opacity:0,y:-12,filter:'blur(10px)'}} className={`screen ${className}`}>{children}</motion.section>}
@@ -144,33 +164,32 @@ function CreateModal({emotion,onClose,onSave,customImages}){
   </motion.div>
  </motion.div>
 }
-function Memories({items,query,setQuery,filter,setFilter,catFilter,setCatFilter,open,customImages}){
+function Memories({items,query,setQuery,filter,setFilter,catFilter,setCatFilter,open,customImages,libraryBg}){
  const filtered=items.filter(m=>{const t=(m.title+m.content+m.categories.join('')).toLowerCase();return (filter==='all'||m.emotion===filter)&&(catFilter==='all'||m.categories.includes(catFilter))&&t.includes(query.toLowerCase())});
  const todayCount=items.filter(m=>isSameDay(parseISO(m.date),new Date())).length;
  const mostEmotion=EMOTIONS.map(e=>({e,count:items.filter(i=>i.emotion===e.key).length})).sort((a,b)=>b.count-a.count)[0]?.e||EMOTIONS[0];
- const recent=items[0]||seed[0];
+ const recent=items[0]||null;
  const activeEmotion=filter==='all'?null:emotionOf(filter);
  const librarySlots=[
-  {left:'32%',top:'31%',size:88,delay:0},{left:'49%',top:'30%',size:64,delay:.2},{left:'65%',top:'31%',size:70,delay:.4},{left:'78%',top:'30%',size:58,delay:.6},
-  {left:'28%',top:'44%',size:98,delay:.8},{left:'46%',top:'44%',size:70,delay:1},{left:'63%',top:'44%',size:88,delay:1.2},{left:'78%',top:'44%',size:54,delay:1.4},
-  {left:'22%',top:'57%',size:62,delay:1.6},{left:'38%',top:'58%',size:86,delay:1.8},{left:'57%',top:'57%',size:68,delay:2},{left:'73%',top:'58%',size:76,delay:2.2},
-  {left:'31%',top:'71%',size:78,delay:2.4},{left:'49%',top:'71%',size:58,delay:2.6},{left:'66%',top:'72%',size:92,delay:2.8},{left:'80%',top:'72%',size:54,delay:3}
+  {left:'25%',top:'20%',size:88,delay:0},{left:'47%',top:'18%',size:64,delay:.2},{left:'67%',top:'21%',size:78,delay:.4},
+  {left:'19%',top:'36%',size:68,delay:.6},{left:'40%',top:'35%',size:104,delay:.8},{left:'63%',top:'37%',size:74,delay:1},{left:'79%',top:'35%',size:58,delay:1.2},
+  {left:'25%',top:'53%',size:92,delay:1.4},{left:'50%',top:'52%',size:72,delay:1.6},{left:'70%',top:'54%',size:94,delay:1.8},
+  {left:'19%',top:'70%',size:64,delay:2},{left:'39%',top:'71%',size:80,delay:2.2},{left:'59%',top:'70%',size:62,delay:2.4},{left:'77%',top:'71%',size:78,delay:2.6}
  ];
- const memoryPool=filtered.length?filtered:[];
- return <Screen className="library-screen v16-library-screen">
+ const memoryPool=filtered;
+ const backgroundValue=libraryBg?`url(${libraryBg})`:`url('/assets/memory-library-bg.jpeg')`;
+ return <Screen className="library-screen v16-library-screen compact-library-screen">
   <div className="library-top v16-library-top"><div><h2>我的記憶庫 ✨</h2><p>{activeEmotion?`正在查看「${activeEmotion.zh}」相關記憶`:'你收藏的情緒記憶都在這裡'}</p></div><div className="library-tools"><button aria-label="搜尋"><Search size={20}/></button><button aria-label="篩選"><SlidersHorizontal size={19}/></button><button onClick={()=>setFilter('all')}>全部</button></div></div>
   <div className="library-search v16-library-search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜尋標題、內容、分類..."/><select value={catFilter} onChange={e=>setCatFilter(e.target.value)}><option value="all">全部分類</option>{CATEGORIES.map(([c])=><option key={c}>{c}</option>)}</select></div>
-  <div className="memory-library-stage v16-memory-library-stage">
-   <div className="v16-bg-dim"/>
-   <div className="v16-library-label"><b>記憶庫</b><small>MEMORY LIBRARY</small></div>
-   <div className="emotion-side-nav v16-emotion-side-nav">{EMOTIONS.map((e,i)=><motion.button key={e.key} onClick={()=>setFilter(filter===e.key?'all':e.key)} className={filter===e.key?'active':''} style={{'--emotionColor':e.color}} whileTap={{scale:.92}} animate={{y:[0,-4,0]}} transition={{duration:2.2+i*.18,repeat:Infinity}} aria-label={`查看${e.zh}記憶`}>{customImages?.[e.key]?<img src={customImages[e.key]} alt={e.zh}/>:<span>{e.face}</span>}</motion.button>)}</div>
+  <div className="memory-library-stage v16-memory-library-stage compact-memory-library-stage" style={{'--libraryBg':backgroundValue}}>
+   <div className="v16-bg-dim compact-bg-dim"/>
+   <div className="v16-library-label compact-library-label"><b>記憶庫</b><small>MEMORY LIBRARY</small></div>
+   <div className="emotion-side-nav v16-emotion-side-nav compact-emotion-side-nav">{EMOTIONS.map((e,i)=><motion.button key={e.key} onClick={()=>setFilter(filter===e.key?'all':e.key)} className={filter===e.key?'active':''} style={{'--emotionColor':e.color}} whileTap={{scale:.92}} animate={{y:[0,-4,0]}} transition={{duration:2.2+i*.18,repeat:Infinity}} aria-label={`查看${e.zh}記憶`}>{customImages?.[e.key]?<img src={customImages[e.key]} alt={e.zh}/>:<span>{e.face}</span>}</motion.button>)}</div>
    <div className="v16-sparkle-layer"><i/><i/><i/><i/><i/></div>
-   {memoryPool.length===0?<div className="library-empty v16-library-empty"><Sparkles/><b>未有相關記憶</b><p>試試切換其他情緒，或新增第一顆記憶水晶。</p></div>:librarySlots.map((slot,i)=>{const m=memoryPool[i%memoryPool.length];const e=emotionOf(m.emotion);return <motion.button key={`${m.id}-${i}`} className="library-crystal v16-library-crystal" style={{left:slot.left,top:slot.top,width:slot.size,height:slot.size,'--orb':e.color,'--orbSoft':e.soft}} onClick={()=>open(m)} animate={{y:[0,-8-(i%3)*3,0],scale:[1,1.035,1]}} transition={{duration:4.2+slot.delay,repeat:Infinity,ease:'easeInOut'}}><span>{m.title}</span><small>{customImages?.[e.key]?<img src={customImages[e.key]} alt={e.zh}/>:e.face}</small></motion.button>})}
-   <button className="library-add v16-library-add" onClick={()=>window.dispatchEvent(new CustomEvent('emotion-memory-open-create'))}><Plus size={26}/><span>新增記憶</span></button>
-   <div className="library-stat-card v16-library-stat-card"><span>記憶總數</span><b>{items.length}</b><small>今日新增 {todayCount}<br/>最常：{mostEmotion.zh}</small></div>
-   <div className="library-recent-card v16-library-recent-card"><span>最近新增</span><b>{recent.title}</b><small>{recent.date}</small></div>
+   {memoryPool.length===0?<div className="library-empty v16-library-empty compact-library-empty"><Sparkles/><b>未有相關記憶</b><p>試試切換其他情緒，或到創建頁新增第一顆記憶水晶。</p></div>:memoryPool.slice(0,librarySlots.length).map((m,i)=>{const slot=librarySlots[i];const e=emotionOf(m.emotion);return <motion.button key={m.id} className="library-crystal v16-library-crystal compact-library-crystal" style={{left:slot.left,top:slot.top,width:slot.size,height:slot.size,'--orb':e.color,'--orbSoft':e.soft}} onClick={()=>open(m)} animate={{y:[0,-8-(i%3)*3,0],scale:[1,1.035,1]}} transition={{duration:4.2+slot.delay,repeat:Infinity,ease:'easeInOut'}}><span>{m.title}</span><small>{customImages?.[e.key]?<img src={customImages[e.key]} alt={e.zh}/>:e.face}</small></motion.button>})}
+   <div className="library-stat-card v16-library-stat-card compact-stat-card"><span>記憶總數</span><b>{items.length}</b><small>今日新增 {todayCount}<br/>最常：{mostEmotion.zh}</small></div>
+   <div className="library-recent-card v16-library-recent-card compact-recent-card"><span>最近新增</span><b>{recent?recent.title:'未有記憶'}</b><small>{recent?recent.date:'到創建頁新增'}</small></div>
   </div>
-  <div className="v16-memory-list"><div className="between"><h3>{activeEmotion?`${activeEmotion.zh}記憶`:'全部記憶'}</h3><span>{filtered.length} 份</span></div>{filtered.slice(0,5).map(m=>{const e=emotionOf(m.emotion);return <button key={m.id} onClick={()=>open(m)} className="v16-memory-row" style={{'--rowColor':e.color}}><div className="v16-row-orb">{customImages?.[e.key]?<img src={customImages[e.key]} alt={e.zh}/>:e.face}</div><div><b>{m.title}</b><small>{m.date} · {e.zh} · 強度 {m.intensity}/10</small></div></button>})}{filtered.length===0&&<p className="v16-list-empty">暫時沒有符合條件的記憶。</p>}</div>
  </Screen>}
 function Empty(){return <div className="empty"><div className="character small">✨</div><h3>未有記憶球</h3><p>返回創建頁，收藏第一份情緒吧。</p></div>}
 function Detail({item,onClose,onDelete,onSave,customImages}){const e=emotionOf(item.emotion);const cardRef=useRef(null);const exportImg=async()=>{if(!cardRef.current)return;const canvas=await html2canvas(cardRef.current,{backgroundColor:null,scale:2});const a=document.createElement('a');a.href=canvas.toDataURL();a.download=`emotion-memory-${item.date}.png`;a.click()};return <motion.div className="overlay" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}><motion.div className="detail" initial={{y:70}} animate={{y:0}} exit={{y:80}} ref={cardRef}><div className="detail-top"><button onClick={onClose}><ChevronLeft/></button><button><MoreVertical/></button></div><div className="big-ball" style={bgStyle(e)}>{customImages?.[e.key]?<img className="big-custom-face" src={customImages[e.key]} alt={e.zh}/>:<span>{e.face}</span>}<b>{item.title}</b><i>♥</i></div><div className="detail-card"><div className="between"><div><h3>{e.zh}</h3><p>{e.en}</p></div><p>{item.date}</p></div><p className="content">{item.content}</p><div className="stars">{'★'.repeat(item.intensity)}{'☆'.repeat(10-item.intensity)} <span>{item.intensity}/10</span></div><div className="chips">{(item.categories||[]).map(c=><span className="chip active" key={c}>{c}</span>)}</div></div><div className="actions"><button><Edit3/>編輯</button><button onClick={exportImg}><Download/>匯出</button><button onClick={()=>onDelete(item.id)} className="danger"><Trash2/>刪除</button></div></motion.div></motion.div>}
@@ -200,8 +219,19 @@ function CalendarPage({items,open,customImages}){
  </Screen>}
 function Review({items,customImages}){const today=items.filter(m=>isSameDay(parseISO(m.date),new Date()));const main=today[0]||items[0]||seed[0];const e=emotionOf(main.emotion);return <Screen><div className="page-head"><h2>今日回顧</h2><RefreshCcw/></div><div className={`review-hero bg-gradient-to-br ${e.gradient}`}><EmotionAvatar emotion={e} customImages={customImages}/><div><p>你的主要情緒</p><h2>{e.zh}</h2><b>{main.intensity}/10</b></div></div><div className="quote-card"><h3>今日語錄</h3><p>「{e.quote}」</p></div><div className="quote-card"><h3>今日分析</h3><p>今天共收藏 {today.length} 份情緒記憶。把情緒寫下來，本身已經是一種溫柔整理。</p></div><button className="primary"><Share2 size={18}/>分享今天的心情</button></Screen>}
 
-function SettingsPage({customImages,setCustomImages,error,setError}){
+function SettingsPage({customImages,setCustomImages,error,setError,libraryBg,setLibraryBg,libraryBgError,setLibraryBgError}){
  const [busy,setBusy]=useState('');
+ const [bgBusy,setBgBusy]=useState(false);
+ const pickLibraryBg=async(file)=>{
+   if(!file)return;
+   setBgBusy(true);
+   setLibraryBgError('');
+   try{
+     const dataUrl=await compressEmotionImage(file,1280,.78);
+     setLibraryBg(dataUrl);
+   }catch(err){setLibraryBgError(err.message||'背景圖片處理失敗，請重試。')}
+   finally{setBgBusy(false)}
+ };
  const pick=async(emotion,file)=>{
    if(!file)return;
    setBusy(emotion.key);
@@ -216,6 +246,15 @@ function SettingsPage({customImages,setCustomImages,error,setError}){
  const resetAll=()=>setCustomImages({});
  return <Screen className="settings-screen">
    <div className="page-head"><h2>情緒公仔設定</h2><Settings size={20}/></div>
+   <div className="settings-hero"><ImageIcon size={24}/><div><b>自訂記憶庫背景</b><p>建議使用直向手機背景圖，尺寸約 1080 × 1920 px 或 1170 × 2532 px；主體盡量放中間，右邊預留位置給 5 個情緒按鍵。</p></div></div>
+   <div className="library-bg-setting-card">
+     <div className="library-bg-preview" style={{backgroundImage:libraryBg?`url(${libraryBg})`:`url('/assets/memory-library-bg.jpeg')`}}><span>{libraryBg?'自訂背景':'預設背景'}</span></div>
+     <div className="library-bg-actions">
+       <label className="asset-upload"><Upload size={15}/>{bgBusy?'處理中...':'上載背景'}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={bgBusy} onChange={ev=>pickLibraryBg(ev.target.files?.[0])}/></label>
+       {libraryBg&&<button className="asset-reset" onClick={()=>setLibraryBg('')}>還原預設背景</button>}
+     </div>
+   </div>
+   {(libraryBgError)&&<p className="image-error">{libraryBgError}</p>}
    <div className="settings-hero"><ImageIcon size={24}/><div><b>自訂 5 種情緒插圖</b><p>上載 PNG / JPG / WebP，系統會自動壓縮並儲存在本機。創建頁、記憶球詳情、日曆及回顧會同步使用。</p></div></div>
    {error&&<p className="image-error">{error}</p>}
    <div className="asset-grid">{EMOTIONS.map(e=><div className="asset-card" key={e.key}>
