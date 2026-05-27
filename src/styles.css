@@ -494,3 +494,8 @@
 .library-bg-preview span{position:absolute;left:14px;bottom:12px;z-index:2;font-size:13px;font-weight:900;color:#fff;text-shadow:0 2px 10px #000}
 .library-bg-actions{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}.library-bg-actions .asset-upload{flex:1}.library-bg-actions .asset-reset{flex:1}
 @media(max-width:390px){.compact-memory-library-stage{height:72svh!important;min-height:585px!important}.compact-emotion-side-nav{right:8px!important;top:112px!important}.compact-emotion-side-nav button{width:52px!important;height:52px!important}.compact-stat-card{width:104px!important}.compact-recent-card{width:122px!important}.compact-library-label{width:70px!important;height:70px!important}.library-bg-preview{height:158px}}
+
+/* v18: remove upper-left memory library label/icon area */
+.no-left-title{justify-content:flex-end;}
+.no-left-title>div:first-child{display:none;}
+.compact-library-label,.v16-library-label{display:none!important;}
